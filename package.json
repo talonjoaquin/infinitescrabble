@@ -1,0 +1,18 @@
+{
+  "name": "infinitescrabble",
+  "version": "1.0.0",
+  "description": "infinite scrabble!",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "author": "@keeeeeeehn",
+  "license": "ISC",
+  "dependencies": {
+    "bufferutil": "^4.0.1",
+    "express": "^4.17.1",
+    "socket.io": "^2.3.0",
+    "utf-8-validate": "^5.0.2",
+    "uuid": "^3.3.3"
+  }
+}
