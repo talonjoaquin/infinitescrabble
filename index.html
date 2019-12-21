@@ -16,9 +16,12 @@
     <p class="notifications"></p>
 
     <div class="board"></div>
-    
     <form action="">
-      <button>Send</button>
+    <button id="send">Send</button>
+    <button id="up">Up</button>
+    <button id="left">Left</button>
+    <button id="right">Right</button>
+    <button id="down">Down</button>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
@@ -46,7 +49,7 @@
           var split = id.split('_');
           var x = parseInt(split[1]);
           var y = parseInt(split[2]);
-          
+
         }
       }
 
@@ -77,8 +80,8 @@
         socket.on('processed', function(){
           ready = true;
         })
-        $('form').submit(function(e){
-          
+        $('#send').click(function(e){
+          alert("send button clicked");
           e.preventDefault(); // prevents page reloading
           
           if(ready){
