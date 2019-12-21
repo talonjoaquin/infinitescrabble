@@ -5,7 +5,7 @@ var apikeys = require('./apikeys.json');
 
 const uuidv4 = require('uuid/v4');
 const PORT = process.env.PORT || 3000;
-const INITSIZE = 15;
+const https = require('https');
 
 var prob_lookup = {
     ' ': 2,
@@ -78,28 +78,94 @@ function setBoard(x, y, char){
         y: y,
         letter: char
     }
+    
     for(var i = 0; i < board.length; i++){
         if(tile.n && tile.e && tile.w && tile.s)
             break;
-        if(board[i].x == x - 1 && board[i].y == y)
+        if(board[i].x == x - 1 && board[i].y == y){
             tile.w = i;
-        else if(board[i].x == x + 1 && board[i].y == y)
+            board[i].e = board.length;
+        }else if(board[i].x == x + 1 && board[i].y == y){
             tile.e = i;
-        else if(board[i].x == x && board[i].y == y - 1)
+            board[i].w = board.length;
+        }else if(board[i].x == x && board[i].y == y - 1){
             tile.n = i;
-        else if(board[i].x == x && board[i].y == y - 1)
+            board[i].s = board.length;
+        }else if(board[i].x == x && board[i].y == y - 1){
             tile.s = i;
+            board[i].n = board.length;
+        }
     }
     board.push(tile);
     newlyadded.push(tile);
+
+    //console.log('board is now: ' + JSON.stringify(board));
 }
 
-function checkWords(){
+
+async function apiLoop(words){
+    var valid_words = [];
+    var invalid = false;
+    for(var i = 0; i < words.length; i++){
+        console.log('hitting api for ' + words[i]);
+
+        let res = await hitApi(words[i]);
+        
+        console.log('res is ' + res);
+        
+        if(res){
+            valid_words.push(res);
+            console.log(res + ' is valid');
+        }else{
+            invalid = true;
+        }
+    }
+    return [valid_words, invalid];
+}
+
+function hitApi(word){
+    return new Promise((resolve, reject) => {
+        //hit dictionary apis here
+        const url = 'https://www.dictionaryapi.com/api/v3/references/collegiate/json/'+word+'?key=' + apikeys.dict_key;
+        https.get(url, (resp) => {
+            
+            let data = '';
+
+            // A chunk of data has been recieved.
+            resp.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            // The whole response has been received. Print out the result.
+            resp.on('end', () => {
+                //console.log(JSON.parse(data));
+                data = JSON.parse(data);
+                //console.log(JSON.parse(data[0]));
+                //console.log(JSON.parse(data[0].meta));
+
+                if(!data[0].meta){
+                    resolve(false);
+                }else{
+                    resolve(word);
+                }
+            });
+
+        }).on("error", (err) => {
+            console.log("Error: " + err.message);
+            resolve(false);
+        });
+    });   
+}
+
+async function checkWords(){
     var invalid = false;
     
     var words = [];
     var to_right = JSON.parse(JSON.stringify(newlyadded));
     var to_down = JSON.parse(JSON.stringify(newlyadded));
+
+    //console.log('to_down: ' + JSON.stringify(to_down));
+
     for(var i = 0; i < to_right.length; i++){
         //check left and top of tile for words
         var word = '';
@@ -115,9 +181,12 @@ function checkWords(){
                 while(!rightmost){
                     for(var j = 0; j < to_right.length; j++){
                         if(to_right[j].x == iter_tile.x && to_right[j].y == iter_tile.y){
+                            //console.log('LR: removing ' + JSON.stringify(to_right[j]));
                             to_right.splice(j, 1);
+                            i = -1;
                         }
                     }
+                    //console.log('LR: found ' + iter_tile.letter);
                     word += iter_tile.letter;
                     if(iter_tile.e){
                         iter_tile = board[iter_tile.e];
@@ -133,6 +202,9 @@ function checkWords(){
             words.push(word);
         }
     }
+
+    //console.log('to_down: ' + JSON.stringify(to_down));
+
     for(var i = 0; i < to_down.length; i++){
         var word = '';
         var topmost = false;
@@ -147,9 +219,14 @@ function checkWords(){
                 while(!downmost){
                     for(var j = 0; j < to_down.length; j++){
                         if(to_down[j].x == iter_tile.x && to_down[j].y == iter_tile.y){
+                            //console.log('UD: removing ' + JSON.stringify(to_down[j]));
+                            //console.log('to_down: ' + JSON.stringify(to_down));
+                            
                             to_down.splice(j, 1);
+                            i = -1;
                         }
                     }
+                    //console.log('UD: found ' + iter_tile.letter);
                     word += iter_tile.letter;
                     if(iter_tile.s){
                         iter_tile = board[iter_tile.s];
@@ -170,34 +247,25 @@ function checkWords(){
     var valid_words = [];
     var score = 0;
 
-    for(var i = 0; i < words.length; i++){
-        //hit dictionary apis here
-        const url = 'https://www.dictionaryapi.com/api/v3/references/collegiate/json/'+words[i]+'?key=' + apikeys.dict_key;
-        fetch(url)
-        .then(data=>{
-            return data.json()
-        })
-        .then(res=>{
-            if(!res[0].meta){
-                invalid = true;
-            }else{
-                valid_words.push(words[i]);
-            }
-        })
+    console.log('checking words: ' + JSON.stringify(words));
+
+    var [vws, inv] = await apiLoop(words);
+    
+    valid_words = JSON.parse(JSON.stringify(vws));
+    invalid = inv;
+    
+    if(invalid){
+        return 0;
     }
 
-    for(var i = 0; i < valid_words.length; i++){
+    for(var i = 0; i < valid_words.length;  i++){
         for(var j = 0; j < valid_words[i].length; j++){
             if(score_lookup[valid_words[i].charAt(j)])
                 score += score_lookup[valid_words[i].charAt(j)];
         }
     }
-
-    if(invalid){
-        return 0;
-    }else{
-        return score;
-    }
+    console.log('returning score: ' + score);
+    return score;    
 }
 
 function getLetters(){
@@ -228,42 +296,56 @@ app.get('/', function(req, res) {
 
 io.on('connection', function(socket){
     var id = uuidv4();
-    console.log('new user connected from socket ' + socketId + '; assigned as ' + id);
+    console.log('new user connected from socket ' + socket.id + '; assigned as ' + id);
 
     var user = {
         id: id,
-        socketId: socketId,
+        socketId: socket.id,
         name: '',
         score: 0
     };
 
     users.push(user);
 
+    io.emit('state change', {'users':users});
 
-    socket.on('submit', function(tiles){
+    socket.on('submit', async function(tiles){
+
+        console.log('submit received, tiles are: ' + JSON.stringify(tiles));
+
         if(id == users[current_turn].id){
             for(var i = 0; i < tiles.length; i++){
                 setBoard(tiles[i].x, tiles[i].y, tiles[i].letter);
             }
-            var scored = checkWords();
+            var scored = await checkWords();
+            console.log('added score: ' + scored);
             if(scored == 0){
-                io.to(users[current_turn].socketId).emit('badinput', {'message': 'Not a word! >:('});
+                console.log('NOT A WORD DANGIT');
+                io.to(users[current_turn].socketId).emit('bad input', {'message': 'Not a word! >:('});
             }else{
                 users[current_turn].score += scored;
             }
+            io.emit('state change', {'users': users});
+            io.to(users[current_turn].socketId).emit('processed');
         }
     });
 
     socket.on('next turn', function(){
+        console.log('received next turn message from ' + socket.id);
         if(users.length > 0){
             //validate that it is your turn to end!
             if(users[current_turn].id == id){
-                current_turn = (current_turn + 1) % user.length;
+
+                current_turn = (current_turn + 1) % users.length;
+
+                console.log('current turn is: ' + current_turn);
+                console.log('current user is: ' + JSON.stringify(users[current_turn]));
+
                 io.emit('message', {'message': 'Your turn, ' + users[current_turn].name + '!'});
                 io.to(users[current_turn].socketId).emit('start of turn', {'letters': getLetters()});
             }else{
                 console.log('user ' + id + ' attempted to end turn not belonging to them!');
-                io.to(user.socketId).emit('bad_input', {'message': 'Not your turn to end!'});
+                io.to(user.socketId).emit('bad input', {'message': 'Not your turn to end!'});
             }
         }
     })
@@ -275,7 +357,7 @@ io.on('connection', function(socket){
                 users.splice(i, 1);
             }
         }
-
+        io.emit('state change', {'users':users});
         console.log('user ' + id + ' disconnected');
     })
 });
