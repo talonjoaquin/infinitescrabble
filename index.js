@@ -111,8 +111,6 @@ function addToBoard(tiles){
         }
     }
 
-
-
     newlyadded = [];
     //clone board pre add
     old_board = JSON.parse(JSON.stringify(board));
@@ -120,8 +118,39 @@ function addToBoard(tiles){
         setBoard(tiles[i].x, tiles[i].y, tiles[i].letter);
     }
 
-    new_letters = JSON.parse(JSON.stringify(tempLetters));
+    //check if tiles are all square adjacent to each other
+    var master_list = JSON.parse(JSON.stringify(board));
+    console.log('master_list is: ' + JSON.stringify(master_list));
+    var to_remove = [];
+    var tile_queue = [];
+    tile_queue.push(master_list[0]);
 
+    while(tile_queue.length > 0){
+        var curr = tile_queue[0];
+        console.log('running through board: curr: ' + JSON.stringify(curr));
+
+        if(curr.n && !to_remove.includes(curr.n))
+            tile_queue.push(master_list[curr.n])
+        if(curr.e && !to_remove.includes(curr.e))
+            tile_queue.push(master_list[curr.e])
+        if(curr.w && !to_remove.includes(curr.w))
+            tile_queue.push(master_list[curr.w])
+        if(curr.s && !to_remove.includes(curr.s))
+            tile_queue.push(master_list[curr.s])
+
+        to_remove.push(master_list.indexOf(curr));
+        tile_queue.splice(0, 1);
+    }
+
+    for(var i = 0; i < master_list.length; i++){
+        if(!to_remove.includes(i)){
+            notification = 'tiles must be square adjacent!';
+            console.log('master_list['+i+']: ' + JSON.stringify(master_list[i]) + ' not found!');
+            return false;
+        }
+    }
+
+    new_letters = JSON.parse(JSON.stringify(tempLetters));
     return true;
 }
 
