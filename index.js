@@ -336,7 +336,9 @@ io.on('connection', function(socket){
         io.to(users[0].socketId).emit('start of turn', {'letters': getLetters()});
     }
 
-    io.emit('state change', {'users':users, 'tiles': board});
+    io.to(socket.id).emit('id', id);
+    
+    io.emit('state change', {'users':users, 'tiles': board, 'current_turn': users[current_turn].id});
 
     socket.on('submit', async function(tiles){
 
@@ -354,7 +356,7 @@ io.on('connection', function(socket){
                 old_board = JSON.parse(JSON.stringify(board));
                 users[current_turn].score += scored;
             }
-            io.emit('state change', {'users': users, 'tiles': board});
+            io.emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
             io.to(users[current_turn].socketId).emit('processed');
         }
     });
@@ -370,7 +372,8 @@ io.on('connection', function(socket){
                 console.log('current turn is: ' + current_turn);
                 console.log('current user is: ' + JSON.stringify(users[current_turn]));
 
-                io.emit('message', {'message': 'Your turn, ' + users[current_turn].name + '!'});
+                io.emit('message', {'message': 'Your turn, ' + users[current_turn].id + '!'});
+                io.emit('state change', {'users':users, 'tiles': board, 'current_turn': users[current_turn].id});
                 io.to(users[current_turn].socketId).emit('start of turn', {'letters': getLetters()});
             }else{
                 console.log('user ' + id + ' attempted to end turn not belonging to them!');
@@ -386,7 +389,8 @@ io.on('connection', function(socket){
                 users.splice(i, 1);
             }
         }
-        io.emit('state change', {'users':users, 'tiles': board});
+        if(users.length > 0)
+            io.emit('state change', {'users':users, 'tiles': board, 'current_turn': users[current_turn].id});
         console.log('user ' + id + ' disconnected');
     })
 });

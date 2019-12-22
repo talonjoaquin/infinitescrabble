@@ -10,6 +10,7 @@
       form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
       .notifications{z-index: 999; position: fixed; top:10px; padding: 10px; }
       .tile{position:absolute; font-family: monospace; font-size: 32px; width: 50px; height: 50px; padding: 9px; background-color:bisque;}
+      .userlist{position:absolute; font-family:monospace; left: 1000px; top: 100px; }
     </style>
   </head>
   <body>
@@ -25,11 +26,14 @@
     <button id="down">Down</button>
     <p class="letters"></p>
     </form>
+    <ul class="userlist"></ul>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
       var ready = false;
       var users = [];
+      var id = '';
+      var current_turn = '';
       var available_letters = [];
       var tiles = [];
 
@@ -132,13 +136,29 @@
           }
         })
         socket.on('state change', function(state){
+          if(state.current_turn){
+            current_turn = state.current_turn;
+          }
+
           if(state.users){
             users = state.users;
+            $(".userlist").empty();
+            for(var i = 0; i < users.length; i++){
+              var is_turn = '';
+              if(users[i].id === current_turn)
+                is_turn = '>> ';
+              var user_entry = $('<li>' + is_turn + users[i].id + ' | ' + users[i].score + '</li>');
+              $(".userlist").append(user_entry);
+            }
+            
           }
           if(state.tiles){
             tiles = state.tiles;
           }
           buildBoard();
+        });
+        socket.on('id', function(given){
+          id = given;
         });
         socket.on('processed', function(){
           ready = true;
@@ -153,6 +173,9 @@
             return false;
           }else{
             $('.notifications').text("server still processing");
+            if(current_turn != id){
+              $('.notifications').text("not your turn!");
+            }
           }
         })
         $('#up').click(function(e){
@@ -190,6 +213,9 @@
             return false;
           }else{
             $('.notifications').text("server still processing");
+            if(current_turn != id){
+              $('.notifications').text("not your turn!");
+            }
           }
         });
       });
