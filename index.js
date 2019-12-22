@@ -83,6 +83,7 @@ function addToBoard(tiles){
         }
     }
 
+    newlyadded = [];
     //clone board pre add
     old_board = JSON.parse(JSON.stringify(board));
     for(var i = 0; i < tiles.length; i++){
@@ -98,6 +99,9 @@ function setBoard(x, y, char){
         letter: char
     }
     
+    console.log('setting ' + char + ' at (' + x + ', ' + y + ')');
+
+
     for(var i = 0; i < board.length; i++){
         if(tile.n && tile.e && tile.w && tile.s)
             break;
@@ -110,7 +114,7 @@ function setBoard(x, y, char){
         }else if(board[i].x == x && board[i].y == y - 1){
             tile.n = i;
             board[i].s = board.length;
-        }else if(board[i].x == x && board[i].y == y - 1){
+        }else if(board[i].x == x && board[i].y == y + 1){
             tile.s = i;
             board[i].n = board.length;
         }
@@ -118,7 +122,8 @@ function setBoard(x, y, char){
     board.push(tile);
     newlyadded.push(tile);
 
-    //console.log('board is now: ' + JSON.stringify(board));
+    console.log('board is now: ' + JSON.stringify(board));
+    console.log('newlyadded is: ' + JSON.stringify(newlyadded));
 }
 
 
@@ -261,7 +266,7 @@ async function checkWords(){
             words.push(word);
         }
     }
-    newlyadded = [];
+    //newlyadded = [];
     
     var valid_words = [];
     var score = 0;
@@ -338,9 +343,7 @@ io.on('connection', function(socket){
         console.log('submit received, tiles are: ' + JSON.stringify(tiles));
 
         if(id == users[current_turn].id){
-            for(var i = 0; i < tiles.length; i++){
-                setBoard(tiles[i].x, tiles[i].y, tiles[i].letter);
-            }
+            addToBoard(tiles);
             var scored = await checkWords();
             console.log('added score: ' + scored);
             if(scored == 0){
