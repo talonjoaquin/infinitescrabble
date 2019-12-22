@@ -282,11 +282,9 @@ async function checkWords(){
         return 0;
     }
 
-    for(var i = 0; i < valid_words.length;  i++){
-        for(var j = 0; j < valid_words[i].length; j++){
-            if(score_lookup[valid_words[i].charAt(j)])
-                score += score_lookup[valid_words[i].charAt(j)];
-        }
+    for(var i = 0; i < newlyadded.length;  i++){
+        if(score_lookup[newlyadded[i].letter])
+            score += score_lookup[newlyadded[i].letter];
     }
     console.log('returning score: ' + score);
     return score;    
@@ -326,14 +324,15 @@ io.on('connection', function(socket){
         id: id,
         socketId: socket.id,
         name: '',
-        score: 0
+        score: 0,
+        letters: getLetters()
     };
 
     users.push(user);
 
     if(users.length == 1){
         current_turn = 0;
-        io.to(users[0].socketId).emit('start of turn', {'letters': getLetters()});
+        io.to(users[0].socketId).emit('start of turn');
     }
 
     io.to(socket.id).emit('id', id);
@@ -345,18 +344,21 @@ io.on('connection', function(socket){
         console.log('submit received, tiles are: ' + JSON.stringify(tiles));
 
         if(id == users[current_turn].id){
-            addToBoard(tiles);
-            var scored = await checkWords();
-            console.log('added score: ' + scored);
-            if(scored == 0){
-                console.log('NOT A WORD DANGIT');
-                board = JSON.parse(JSON.stringify(old_board));
-                io.to(users[current_turn].socketId).emit('bad input', {'message': 'Not a word! >:('});
+            if(addToBoard(tiles)){
+                var scored = await checkWords();
+                console.log('added score: ' + scored);
+                if(scored == 0){
+                    console.log('NOT A WORD DANGIT');
+                    board = JSON.parse(JSON.stringify(old_board));
+                    io.to(users[current_turn].socketId).emit('bad input', {'message': 'Not a word! >:('});
+                }else{
+                    old_board = JSON.parse(JSON.stringify(board));
+                    users[current_turn].score += scored;
+                }
+                io.emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
             }else{
-                old_board = JSON.parse(JSON.stringify(board));
-                users[current_turn].score += scored;
+                io.to(users[current_turn].socketId).emit('bad input', {'message': 'Bad Input!'});
             }
-            io.emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
             io.to(users[current_turn].socketId).emit('processed');
         }
     });
@@ -373,8 +375,11 @@ io.on('connection', function(socket){
                 console.log('current user is: ' + JSON.stringify(users[current_turn]));
 
                 io.emit('message', {'message': 'Your turn, ' + users[current_turn].id + '!'});
+                
+                users[current_turn].letters = getLetters();
+                
                 io.emit('state change', {'users':users, 'tiles': board, 'current_turn': users[current_turn].id});
-                io.to(users[current_turn].socketId).emit('start of turn', {'letters': getLetters()});
+                io.to(users[current_turn].socketId).emit('start of turn');
             }else{
                 console.log('user ' + id + ' attempted to end turn not belonging to them!');
                 io.to(user.socketId).emit('bad input', {'message': 'Not your turn to end!'});
