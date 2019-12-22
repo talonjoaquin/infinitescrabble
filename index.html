@@ -8,8 +8,8 @@
       form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
       form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
       form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      .notifications{z-index: 999; position: fixed; top:10px; padding: 10px}
-      .tile{position:relative; font-family: monospace; font-size: 32px; width: 50px; height: 50px; padding: 9px}
+      .notifications{z-index: 999; position: fixed; top:10px; padding: 10px; }
+      .tile{position:relative; font-family: monospace; font-size: 32px; width: 50px; height: 50px; padding: 9px; background-color:bisque;}
     </style>
   </head>
   <body>
@@ -17,51 +17,110 @@
 
     <div class="board"></div>
     <form action="">
-    <button id="send">Send</button>
+    <button id="send">Place Tiles</button>
+    <button id="next">End Turn</button>
     <button id="up">Up</button>
     <button id="left">Left</button>
     <button id="right">Right</button>
     <button id="down">Down</button>
+    <p class="letters"></p>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
-      var ready = true;
+      var ready = false;
       var users = [];
       var available_letters = [];
+      var tiles = [];
 
-      function initializeBoard(){
-        for(var y = 0; y < 15; y++){
-          for(var x = 0; x < 15; x++){
-            var tile_input = $('<input class="tile" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
-            $(".board").append(tile_input);
+      var board = []; //should be 15x15
+      var offset_x = 0;
+      var offset_y = 0;
+      //(offset_x, offset_y) is the real coordinate of the upper-left corner of the board
 
-            $("#tile_"+ x + "_" + y).offset({top: 50 + y * 50, left: 50 + x * 50});
+      function buildBoard(){
+        $(".board").empty();
+
+        if(tiles.length === 0){
+          //with no tiles, all spaces on board are free for input
+          for(var y = 0; y < 15; y++){
+            for(var x = 0; x < 15; x++){
+              var tile_input = $('<input class="tile" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
+              $(".board").append(tile_input);
+
+              $("#tile_"+ x + "_" + y).offset({top: 50 + y * 50, left: 50 + x * 50});
+            }
+          }
+        }else{
+          for(var i = 0; i < 15 * 15; i++){
+            //empty, input
+            board[i] = 2;
+          }
+          //fill in board with tiles
+          for(var i = 0; i < tiles.length; i++){
+            //tile, non-input
+            var nx = tiles[i].x - offset_x;
+            var ny = tiles[i].y - offset_y;
+            var ni = nx + ny * 15;
+            
+            if(nx >= 0 && nx < 15 && ny >= 0 && ny < 15 && ni >= 0 && ni < 15 * 15)
+              board[ni] = tiles[i].letter;
+          }
+
+          for(var y = 0; y < 15; y++){
+            for(var x = 0; x < 15; x++){
+              if(board[x + y * 15] === 2){
+                var tile_input = $('<input class="tile" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
+                $(".board").append(tile_input);  
+              }else{
+                var tile_input = $('<div class="tile" id="tile_'+ x + '_' + y +'" maxlength="1">' + board[x + y * 15] + '</div>');
+                $(".board").append(tile_input);
+              }
+              $("#tile_"+ x + "_" + y).offset({top: 50 + y * 50, left: 50 + x * 50});
+            }
           }
         }
       }
 
       function readBoard(){
-        var tiles = $(".tile");
+        var inputs = $('input.tile');
 
-        for(var i = 0; i < tiles.length; i++){
-          var id = tiles[i].attr('id');
-          var split = id.split('_');
-          var x = parseInt(split[1]);
-          var y = parseInt(split[2]);
+        var tiles = [];
 
+        for(var i = 0; i < inputs.length; i++){
+          if(inputs[i].value){
+            var content = inputs[i].value;
+            var id = inputs[i].id;
+            var split = id.split('_');
+            var x = parseInt(split[1]);
+            var y = parseInt(split[2]);
+            
+            var new_tile = {
+              x: x,
+              y: y,
+              letter: content
+            };
+
+            tiles.push(new_tile);
+          }
         }
+
+        console.log(JSON.stringify(tiles));
+        return tiles;
       }
 
       $(function () {
         var socket = io();
 
-        initializeBoard();
+        buildBoard();
 
 
         $('.notifications').text('welcome to infinite scrabble');
 
-
+        socket.on('start of turn', function(){
+          ready = true;
+          buildBoard();
+        });
         socket.on('bad input', function(message){
           if(message && message.message){
             $('.notifications').text(message.message);
@@ -76,18 +135,58 @@
           if(state.users){
             users = state.users;
           }
+          if(state.tiles){
+            tiles = state.tiles;
+          }
+          buildBoard();
         });
         socket.on('processed', function(){
           ready = true;
+        });
+        $('#next').click(function(e){
+          console.log('end turn button clicked');
+          e.preventDefault();
+          if(ready){
+            socket.emit('next turn');
+            $('.notifications').text("ended turn");
+            ready = false;
+            return false;
+          }else{
+            $('.notifications').text("server still processing");
+          }
         })
+        $('#up').click(function(e){
+          console.log('up button clicked');
+          e.preventDefault();
+          offset_y--;
+          buildBoard();
+        });
+        $('#left').click(function(e){
+          console.log('left button clicked');
+          e.preventDefault();
+          offset_x--;
+          buildBoard();
+        });
+        $('#right').click(function(e){
+          console.log('right button clicked');
+          e.preventDefault();
+          offset_x++;
+          buildBoard();
+        });
+        $('#down').click(function(e){
+          console.log('down button clicked');
+          e.preventDefault();
+          offset_y++;
+          buildBoard();
+        });
+
         $('#send').click(function(e){
-          alert("send button clicked");
+          console.log('send button clicked');
           e.preventDefault(); // prevents page reloading
           
           if(ready){
             socket.emit('submit', readBoard());
-            socket.emit('next turn');
-            $('#m').val('');
+            ready = false;
             return false;
           }else{
             $('.notifications').text("server still processing");

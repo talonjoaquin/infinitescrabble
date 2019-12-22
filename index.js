@@ -70,7 +70,26 @@ var score_lookup = {
 var users = []; //stores user objects
 var current_turn = 0;
 var board = []; //stores tile objects
+var old_board = []; //allows rollback
 var newlyadded = []; //newly added tiles
+
+function addToBoard(tiles){
+    for(var i = 0; i < tiles.length; i++){
+        for(var j = 0; j < board.length; j++){
+            if(tiles[i].x == board[j].x && tiles[i].y == board[j].y){
+                //overlap between board and tiles to be added
+                return false;
+            }
+        }
+    }
+
+    //clone board pre add
+    old_board = JSON.parse(JSON.stringify(board));
+    for(var i = 0; i < tiles.length; i++){
+        setBoard(tiles[i].x, tiles[i].y, tiles[i].letter);
+    }
+    return true;
+}
 
 function setBoard(x, y, char){
     var tile = {
@@ -307,7 +326,12 @@ io.on('connection', function(socket){
 
     users.push(user);
 
-    io.emit('state change', {'users':users});
+    if(users.length == 1){
+        current_turn = 0;
+        io.to(users[0].socketId).emit('start of turn', {'letters': getLetters()});
+    }
+
+    io.emit('state change', {'users':users, 'tiles': board});
 
     socket.on('submit', async function(tiles){
 
@@ -321,11 +345,13 @@ io.on('connection', function(socket){
             console.log('added score: ' + scored);
             if(scored == 0){
                 console.log('NOT A WORD DANGIT');
+                board = JSON.parse(JSON.stringify(old_board));
                 io.to(users[current_turn].socketId).emit('bad input', {'message': 'Not a word! >:('});
             }else{
+                old_board = JSON.parse(JSON.stringify(board));
                 users[current_turn].score += scored;
             }
-            io.emit('state change', {'users': users});
+            io.emit('state change', {'users': users, 'tiles': board});
             io.to(users[current_turn].socketId).emit('processed');
         }
     });
@@ -357,7 +383,7 @@ io.on('connection', function(socket){
                 users.splice(i, 1);
             }
         }
-        io.emit('state change', {'users':users});
+        io.emit('state change', {'users':users, 'tiles': board});
         console.log('user ' + id + ' disconnected');
     })
 });
