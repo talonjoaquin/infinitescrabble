@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 const https = require('https');
 
 var prob_lookup = {
-    ' ': 2,
+    '_': 2,
     'a': 9,
     'b': 2,
     'c': 2,
@@ -38,7 +38,7 @@ var prob_lookup = {
 }
 
 var score_lookup = {
-    ' ': 0,
+    '_': 0,
     'a': 1,
     'b': 3,
     'c': 3,
@@ -71,17 +71,47 @@ var users = []; //stores user objects
 var current_turn = 0;
 var board = []; //stores tile objects
 var old_board = []; //allows rollback
-var newlyadded = []; //newly added tiles
+var newlyadded = []; //newly added tiles\
+
+var new_letters = [];
+
+var notification = '';
 
 function addToBoard(tiles){
+    new_letters = JSON.parse(JSON.stringify(users[current_turn].letters));
+
+    var tempLetters = JSON.parse(JSON.stringify(users[current_turn].letters));
     for(var i = 0; i < tiles.length; i++){
-        for(var j = 0; j < board.length; j++){
-            if(tiles[i].x == board[j].x && tiles[i].y == board[j].y){
-                //overlap between board and tiles to be added
+        var letter = tiles[i].letter;
+        var index = tempLetters.indexOf(letter);
+
+        if(index >= 0){
+            tempLetters.splice(index, 1);
+        }else{
+            //check if free tile exists
+            var free = tempLetters.indexOf('_');
+            if(free >= 0) {
+                tempLetters.splice(free, 1);
+            }else{
+                notification = 'you don\'t have the right letters for that!';
                 return false;
             }
         }
     }
+
+    
+
+    for(var i = 0; i < tiles.length; i++){
+        for(var j = 0; j < board.length; j++){
+            if(tiles[i].x == board[j].x && tiles[i].y == board[j].y){
+                //overlap between board and tiles to be added
+                notification = 'bad input!';
+                return false;
+            }
+        }
+    }
+
+
 
     newlyadded = [];
     //clone board pre add
@@ -89,6 +119,9 @@ function addToBoard(tiles){
     for(var i = 0; i < tiles.length; i++){
         setBoard(tiles[i].x, tiles[i].y, tiles[i].letter);
     }
+
+    new_letters = JSON.parse(JSON.stringify(tempLetters));
+
     return true;
 }
 
@@ -330,6 +363,8 @@ io.on('connection', function(socket){
 
     users.push(user);
 
+    console.log('users: ' + JSON.stringify(users));
+
     if(users.length == 1){
         current_turn = 0;
         io.to(users[0].socketId).emit('start of turn');
@@ -351,13 +386,18 @@ io.on('connection', function(socket){
                     console.log('NOT A WORD DANGIT');
                     board = JSON.parse(JSON.stringify(old_board));
                     io.to(users[current_turn].socketId).emit('bad input', {'message': 'Not a word! >:('});
+                    io.to(users[current_turn].socketId).emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
                 }else{
                     old_board = JSON.parse(JSON.stringify(board));
+                    users[current_turn].letters = JSON.parse(JSON.stringify(new_letters));
                     users[current_turn].score += scored;
+                    io.emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
                 }
-                io.emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
             }else{
-                io.to(users[current_turn].socketId).emit('bad input', {'message': 'Bad Input!'});
+                board = JSON.parse(JSON.stringify(old_board));
+                io.to(users[current_turn].socketId).emit('bad input', {'message': notification});
+                notification = '';
+                io.to(users[current_turn].socketId).emit('state change', {'users': users, 'tiles': board, 'current_turn': users[current_turn].id});
             }
             io.to(users[current_turn].socketId).emit('processed');
         }

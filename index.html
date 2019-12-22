@@ -5,11 +5,13 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form { display: flex; background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
       form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
       form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
       .notifications{z-index: 999; position: fixed; top:10px; padding: 10px; }
       .tile{position:absolute; font-family: monospace; font-size: 32px; width: 50px; height: 50px; padding: 9px; background-color:bisque;}
+      .letter{display:inline-block; margin-left: 5px; position:relative; font-family: monospace; font-size: 24px; width: 40px; height: 40px; padding: 8px; background-color:bisque;}
+      .letters{flex-direction: row; }
       .userlist{position:absolute; font-family:monospace; left: 1000px; top: 100px; }
     </style>
   </head>
@@ -34,7 +36,6 @@
       var users = [];
       var id = '';
       var current_turn = '';
-      var available_letters = [];
       var tiles = [];
 
       var board = []; //should be 15x15
@@ -44,7 +45,21 @@
 
       function buildBoard(){
         $(".board").empty();
+        
+        //update letters
+        $(".letters").empty();
+        for(var i = 0; i < users.length; i++){
+          //find the right user
+          if(users[i].id === id){
+            for(var j = 0; j < users[i].letters.length; j++){
+              var letter = $('<div class="letter">'+users[i].letters[j]+'</div>');
+              $(".letters").append(letter);
+            }
+          }
+        }
 
+
+        //update board
         if(tiles.length === 0){
           //with no tiles, all spaces on board are free for input
           for(var y = 0; y < 15; y++){
@@ -96,8 +111,8 @@
             var content = inputs[i].value;
             var id = inputs[i].id;
             var split = id.split('_');
-            var x = parseInt(split[1]);
-            var y = parseInt(split[2]);
+            var x = parseInt(split[1]) + offset_x;
+            var y = parseInt(split[2]) + offset_y;
             
             var new_tile = {
               x: x,
@@ -145,9 +160,12 @@
             $(".userlist").empty();
             for(var i = 0; i < users.length; i++){
               var is_turn = '';
+              var is_me = '';
+              if(users[i].id === id)
+                is_me = ' (ME) ';
               if(users[i].id === current_turn)
                 is_turn = '>> ';
-              var user_entry = $('<li>' + is_turn + users[i].id + ' | ' + users[i].score + '</li>');
+              var user_entry = $('<li>' + is_turn + is_me + users[i].id + ' | ' + users[i].score + '</li>');
               $(".userlist").append(user_entry);
             }
             
