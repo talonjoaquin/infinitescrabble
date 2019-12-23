@@ -463,8 +463,10 @@ io.on('connection', function(socket){
                 users.splice(i, 1);
             }
         }
-        if(users.length > 0)
+        if(users.length > 0){
+            current_turn = current_turn % users.length;
             io.emit('state change', {'users':users, 'tiles': board, 'current_turn': users[current_turn].id});
+        }
         console.log('user ' + id + ' disconnected');
     })
 });

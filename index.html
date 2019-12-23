@@ -108,7 +108,7 @@
 
         for(var i = 0; i < inputs.length; i++){
           if(inputs[i].value){
-            var content = inputs[i].value;
+            var content = inputs[i].value.toLowerCase();
             var id = inputs[i].id;
             var split = id.split('_');
             var x = parseInt(split[1]) + offset_x;
