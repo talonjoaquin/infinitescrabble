@@ -13,6 +13,8 @@
       .letter{display:inline-block; margin-left: 5px; position:relative; font-family: monospace; font-size: 24px; width: 40px; height: 40px; padding: 8px; background-color:bisque;}
       .letters{flex-direction: row; }
       .userlist{position:absolute; font-family:monospace; left: 1000px; top: 100px; }
+      .double{background-color:aquamarine !important;}
+      .triple{background-color:lightcoral !important;}
     </style>
   </head>
   <body>
@@ -39,9 +41,22 @@
       var tiles = [];
 
       var board = []; //should be 15x15
-      var offset_x = 0;
-      var offset_y = 0;
+      var offset_x = -7;
+      var offset_y = -7;
       //(offset_x, offset_y) is the real coordinate of the upper-left corner of the board
+
+      function getTileColor(x, y){
+        //triple tile value
+        if(x % 7 == 0 && y % 7 == 0){
+            return ' triple';
+        }
+        //double tile value
+        if(Math.abs(x) == Math.abs(y)){
+            return ' double';
+        }
+        //no multiplier
+        return '';
+      }
 
       function buildBoard(){
         $(".board").empty();
@@ -64,7 +79,7 @@
           //with no tiles, all spaces on board are free for input
           for(var y = 0; y < 15; y++){
             for(var x = 0; x < 15; x++){
-              var tile_input = $('<input class="tile" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
+              var tile_input = $('<input class="tile' + getTileColor(x + offset_x, y + offset_y) + '" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
               $(".board").append(tile_input);
 
               $("#tile_"+ x + "_" + y).offset({top: 50 + y * 50, left: 50 + x * 50});
@@ -89,10 +104,10 @@
           for(var y = 0; y < 15; y++){
             for(var x = 0; x < 15; x++){
               if(board[x + y * 15] === 2){
-                var tile_input = $('<input class="tile" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
+                var tile_input = $('<input class="tile' + getTileColor(x + offset_x, y + offset_y) + '" id="tile_'+ x + '_' + y +'" maxlength="1"></input>');
                 $(".board").append(tile_input);  
               }else{
-                var tile_input = $('<div class="tile" id="tile_'+ x + '_' + y +'" maxlength="1">' + board[x + y * 15] + '</div>');
+                var tile_input = $('<div class="tile' + getTileColor(x + offset_x, y + offset_y) + '" id="tile_'+ x + '_' + y +'" maxlength="1">' + board[x + y * 15] + '</div>');
                 $(".board").append(tile_input);
               }
               $("#tile_"+ x + "_" + y).offset({top: 50 + y * 50, left: 50 + x * 50});

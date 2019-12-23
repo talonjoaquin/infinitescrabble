@@ -77,6 +77,19 @@ var new_letters = [];
 
 var notification = '';
 
+function scoreMultiply(x, y, score){
+    //triple tile value
+    if(x % 7 == 0 && y % 7 == 0){
+        return score * 3;
+    }
+    //double tile value
+    if(Math.abs(x) == Math.abs(y)){
+        return score * 2;
+    }
+    //no multiplier
+    return score;
+}
+
 function addToBoard(tiles){
     new_letters = JSON.parse(JSON.stringify(users[current_turn].letters));
 
@@ -346,7 +359,7 @@ async function checkWords(){
 
     for(var i = 0; i < newlyadded.length;  i++){
         if(score_lookup[newlyadded[i].letter])
-            score += score_lookup[newlyadded[i].letter];
+            score += scoreMultiply(newlyadded[i].x, newlyadded[i].y, score_lookup[newlyadded[i].letter]);
     }
     console.log('returning score: ' + score);
     return score;    
